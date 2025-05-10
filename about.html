@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+
+{% block title %}About{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8 mx-auto">
+        <div class="card">
+            <div class="card-header">
+                <h4><i class="fas fa-info-circle"></i> About Inventory Slip Generator</h4>
+            </div>
+            <div class="card-body text-center">
+                <div class="mb-4">
+                    <i class="fas fa-tags" style="font-size: 5rem; color: var(--accent);"></i>
+                </div>
+                
+                <h3 class="mb-3">Inventory Slip Generator</h3>
+                <h5 class="mb-4">Version {{ version }}</h5>
+                
+                <div class="mb-4">
+                    <p>An application for generating inventory slips from CSV and JSON data.</p>
+                    <p>Supports Bamboo Transfer schema and Cultivera format for cannabis inventory management.</p>
+                </div>
+                
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5>Features</h5>
+                    </div>
+                    <div class="card-body text-start">
+                        <ul>
+                            <li>Import data from CSV files</li>
+                            <li>Import data from Bamboo and Cultivera JSON</li>
+                            <li>Direct API integration</li>
+                            <li>Custom template support</li>
+                            <li>Automatic font sizing for readability</li>
+                            <li>Multiple items per page</li>
+                            <li>Dark and light themes</li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <p>
+                    Created by Adam Cordova<br>
+                    AGT Bothell 2025&copy;
+                </p>
+                
+                <a href="{{ url_for('index') }}" class="btn btn-primary">
+                    <i class="fas fa-home"></i> Return to Home
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
