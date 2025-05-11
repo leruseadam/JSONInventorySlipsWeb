@@ -1,0 +1,165 @@
+{% extends "base.html" %}
+
+{% block title %}Home - Inventory Slip Generator{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-upload"></i> Import Data</h5>
+            </div>
+            <div class="card-body">
+                <form action="{{ url_for('upload_csv') }}" method="post" enctype="multipart/form-data">
+                    <div class="mb-3">
+                        <label for="file" class="form-label">Upload CSV File</label>
+                        <input type="file" class="form-control" id="file" name="file" accept=".csv">
+                        <div class="form-text">Select a CSV file containing inventory data.</div>
+                    </div>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-upload"></i> Upload
+                    </button>
+                </form>
+
+                <hr>
+
+                <div class="mb-3">
+                    <label for="json_url" class="form-label">Import from URL</label>
+                    <div class="input-group">
+                        <input type="url" class="form-control" id="json_url" name="json_url" 
+                               placeholder="Enter JSON URL (Bamboo or Cultivera)">
+                        <button class="btn btn-primary" type="button" onclick="loadFromUrl()">
+                            <i class="fas fa-download"></i> Load
+                        </button>
+                    </div>
+                    <div class="form-text">Enter a URL to fetch JSON data from Bamboo or Cultivera.</div>
+                </div>
+
+                <hr>
+
+                <div class="mb-3">
+                    <label for="json_data" class="form-label">Paste JSON Data</label>
+                    <textarea class="form-control" id="json_data" name="json_data" rows="5" 
+                              placeholder="Paste your JSON data here..."></textarea>
+                    <div class="form-text">Paste JSON data from Bamboo or Cultivera.</div>
+                </div>
+                <button class="btn btn-primary" onclick="processJsonData()">
+                    <i class="fas fa-code"></i> Process JSON
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-cog"></i> Quick Settings</h5>
+            </div>
+            <div class="card-body">
+                <form action="{{ url_for('settings') }}" method="post">
+                    <div class="mb-3">
+                        <label for="items_per_page" class="form-label">Items per Page</label>
+                        <select class="form-select" id="items_per_page" name="items_per_page">
+                            <option value="2">2</option>
+                            <option value="4" selected>4</option>
+                            <option value="6">6</option>
+                            <option value="8">8</option>
+                        </select>
+            </div>
+            
+                    <div class="mb-3">
+                        <label for="output_dir" class="form-label">Output Directory</label>
+                        <input type="text" class="form-control" id="output_dir" name="output_dir" 
+                               value="{{ config['PATHS']['output_dir'] }}">
+                        </div>
+                        
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" id="auto_open" name="auto_open" 
+                               {% if config['SETTINGS'].getboolean('auto_open', True) %}checked{% endif %}>
+                        <label class="form-check-label" for="auto_open">
+                            Auto-open after generation
+                        </label>
+            </div>
+            
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i> Save Settings
+                    </button>
+                </form>
+    </div>
+</div>
+
+        <div class="card mt-3">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-info-circle"></i> Quick Info</h5>
+            </div>
+            <div class="card-body">
+                <p class="mb-2">
+                    <i class="fas fa-file-csv text-success"></i> CSV Format:
+                    <small class="d-block">Product Name*, Barcode*, Quantity*, etc.</small>
+                </p>
+                <p class="mb-2">
+                    <i class="fas fa-code text-primary"></i> JSON Format:
+                    <small class="d-block">Bamboo Transfer or Cultivera Manifest</small>
+                </p>
+                <p class="mb-0">
+                    <i class="fas fa-file-word text-info"></i> Output:
+                    <small class="d-block">Word document with inventory slips</small>
+                </p>
+                </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function loadFromUrl() {
+    const url = document.getElementById('json_url').value;
+    if (!url) {
+        alert('Please enter a URL');
+        return;
+    }
+
+    fetch(url)
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('json_data').value = JSON.stringify(data, null, 2);
+            processJsonData();
+        })
+        .catch(error => {
+            alert('Error loading data: ' + error.message);
+        });
+}
+
+function processJsonData() {
+    const jsonData = document.getElementById('json_data').value;
+    if (!jsonData) {
+        alert('Please enter JSON data');
+        return;
+    }
+
+    fetch('{{ url_for("paste_json") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: 'json_text=' + encodeURIComponent(jsonData)
+    })
+    .then(response => {
+        if (response.redirected) {
+            window.location.href = response.url;
+            } else {
+            return response.json();
+            }
+    })
+    .then(data => {
+        if (data && !data.success) {
+            alert('Error: ' + data.message);
+        }
+    })
+    .catch(error => {
+        alert('Error processing data: ' + error.message);
+    });
+}
+</script>
+{% endblock %}

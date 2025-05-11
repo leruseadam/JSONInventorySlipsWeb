@@ -1,0 +1,153 @@
+# Dockerfile
+FROM python:3.9-slim
+
+WORKDIR /app
+
+# Copy requirements first for better caching
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy application files
+COPY . .
+
+# Create necessary directories
+RUN mkdir -p templates templates/documents static static/assets
+
+# Set environment variables
+ENV FLASK_APP=app.py
+ENV PYTHONUNBUFFERED=1
+
+# Expose the port
+EXPOSE 5000
+
+# Run with Gunicorn for production
+CMD ["gunicorn", "--bind", "0.0.0.0:5000", "app:app"]
+
+# Docker Deployment Instructions
+
+## Building the Docker Image
+
+To build the Docker image for the Inventory Slip Generator:
+
+```bash
+docker build -t inventory-slip-generator .
+```
+
+## Running the Container
+
+To run the application in a Docker container:
+
+```bash
+docker run -d -p 5000:5000 --name inventory-generator inventory-slip-generator
+```
+
+This will start the container in detached mode and map port 5000 from the container to port 5000 on your host machine.
+
+## Adding Persistent Storage
+
+To persist configuration and generated files across container restarts:
+
+```bash
+docker run -d -p 5000:5000 \
+  -v ~/inventory-generator-config:/root \
+  -v ~/inventory-generator-data:/tmp/inventory_generator \
+  --name inventory-generator inventory-slip-generator
+```
+
+This mounts:
+- A directory for the configuration file (`~/inventory-generator-config`)
+- A directory for the generated files (`~/inventory-generator-data`)
+
+## Accessing the Application
+
+Once the container is running, you can access the application at:
+
+```
+http://localhost:5000
+```
+
+## Viewing Logs
+
+To view the application logs:
+
+```bash
+docker logs inventory-generator
+```
+
+Add the `-f` flag to follow the logs:
+
+```bash
+docker logs -f inventory-generator
+```
+
+## Stopping the Container
+
+To stop the running container:
+
+```bash
+docker stop inventory-generator
+```
+
+## Restarting the Container
+
+To restart an existing container:
+
+```bash
+docker start inventory-generator
+```
+
+## Removing the Container
+
+To remove the container:
+
+```bash
+docker stop inventory-generator
+docker rm inventory-generator
+```
+
+## Updating the Application
+
+To update to a new version:
+
+1. Stop and remove the existing container:
+   ```bash
+   docker stop inventory-generator
+   docker rm inventory-generator
+   ```
+
+2. Pull the new image or rebuild it:
+   ```bash
+   docker build -t inventory-slip-generator .
+   ```
+
+3. Run a new container:
+   ```bash
+   docker run -d -p 5000:5000 \
+     -v ~/inventory-generator-config:/root \
+     -v ~/inventory-generator-data:/tmp/inventory_generator \
+     --name inventory-generator inventory-slip-generator
+   ```
+
+## Docker Compose
+
+For easier management, you can use Docker Compose. Create a `docker-compose.yml` file:
+
+```yaml
+version: '3'
+services:
+  inventory-generator:
+    build: .
+    ports:
+      - "5000:5000"
+    volumes:
+      - ~/inventory-generator-config:/root
+      - ~/inventory-generator-data:/tmp/inventory_generator
+    restart: unless-stopped
+```
+
+Then use the following commands:
+
+- Start the application: `docker-compose up -d`
+- Stop the application: `docker-compose down`
+- View logs: `docker-compose logs -f`
+- Rebuild and restart: `docker-compose up -d --build`

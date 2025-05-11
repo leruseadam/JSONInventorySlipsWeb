@@ -1,0 +1,226 @@
+{% extends "base.html" %}
+
+{% block title %}Data View - Inventory Slip Generator{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-table"></i> Imported Data</h5>
+                <div>
+                    <button class="btn btn-primary" onclick="selectAll()" title="Select all products">
+                        <i class="fas fa-check-square" aria-hidden="true"></i> Select All
+                    </button>
+                    <button class="btn btn-secondary" onclick="deselectAll()" title="Deselect all products">
+                        <i class="fas fa-square" aria-hidden="true"></i> Deselect All
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                        <div class="input-group">
+                        <span class="input-group-text"><i class="fas fa-search" aria-hidden="true"></i></span>
+                        <input type="text" class="form-control" id="searchInput" 
+                               placeholder="Search products..." aria-label="Search products">
+                        <button class="btn btn-outline-secondary" type="button" onclick="clearSearch()" 
+                                title="Clear search">
+                            <i class="fas fa-times" aria-hidden="true"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>
+                                    <input type="checkbox" class="form-check-input" id="selectAllCheckbox"
+                                           aria-label="Select all products">
+                                </th>
+                                <th>Product Name</th>
+                                <th>Strain</th>
+                                <th>SKU</th>
+                                <th>Quantity</th>
+                                <th>Source</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for product in products %}
+                            <tr>
+                                <td>
+                                    <input type="checkbox" class="form-check-input product-checkbox" 
+                                           value="{{ product.id }}" checked
+                                           aria-label="Select {{ product.name }}">
+                                </td>
+                                <td>{{ product.name }}</td>
+                                <td>{{ product.strain }}</td>
+                                <td>{{ product.sku }}</td>
+                                <td>{{ product.quantity }}</td>
+                                <td>
+                                    <span class="badge {% if product.source == 'Bamboo' %}bg-success{% else %}bg-primary{% endif %}">
+                                        {{ product.source }}
+                                    </span>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="text-center mt-4">
+                    <button class="btn btn-success btn-lg" onclick="generateSlips()" 
+                            title="Generate inventory slips for selected products">
+                        <i class="fas fa-file-word" aria-hidden="true"></i> Generate Inventory Slips
+                                    </button>
+                                </div>
+                            </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+<!-- Progress Modal -->
+<div class="modal fade" id="progressModal" data-bs-backdrop="static" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Generating Inventory Slips</h5>
+                                        </div>
+            <div class="modal-body">
+                <div class="progress mb-3">
+                    <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                         role="progressbar" style="width: 0%" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
+                    </div>
+                    </div>
+                <p class="text-center mb-0" id="progressText">Initializing...</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let progressModal;
+let progressBar;
+let progressText;
+
+document.addEventListener('DOMContentLoaded', function() {
+    progressModal = new bootstrap.Modal(document.getElementById('progressModal'));
+    progressBar = document.querySelector('.progress-bar');
+    progressText = document.getElementById('progressText');
+
+    // Initialize search functionality
+    document.getElementById('searchInput').addEventListener('input', filterProducts);
+    });
+    
+function selectAll() {
+        document.querySelectorAll('.product-checkbox').forEach(checkbox => {
+            checkbox.checked = true;
+    });
+    document.getElementById('selectAllCheckbox').checked = true;
+}
+    
+function deselectAll() {
+        document.querySelectorAll('.product-checkbox').forEach(checkbox => {
+            checkbox.checked = false;
+        });
+    document.getElementById('selectAllCheckbox').checked = false;
+}
+
+function filterProducts() {
+    const searchText = document.getElementById('searchInput').value.toLowerCase();
+    const rows = document.querySelectorAll('tbody tr');
+
+    rows.forEach(row => {
+        const text = row.textContent.toLowerCase();
+        row.style.display = text.includes(searchText) ? '' : 'none';
+    });
+}
+
+function clearSearch() {
+    document.getElementById('searchInput').value = '';
+    filterProducts();
+}
+
+function updateProgress(percent, text) {
+    progressBar.style.width = percent + '%';
+    progressBar.setAttribute('aria-valuenow', percent);
+    progressText.textContent = text;
+}
+
+function generateSlips() {
+    const selectedProducts = Array.from(document.querySelectorAll('.product-checkbox:checked'))
+        .map(checkbox => checkbox.value);
+
+    if (selectedProducts.length === 0) {
+        alert('Please select at least one product');
+        return;
+    }
+
+    progressModal.show();
+    updateProgress(0, 'Starting generation...');
+
+    // Create form data
+    const formData = new FormData();
+    selectedProducts.forEach(productId => {
+        formData.append('selected_indices[]', productId);
+    });
+
+    fetch('{{ url_for("generate_slips") }}', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Network response was not ok');
+        }
+        // Get filename from Content-Disposition header
+        const contentDisposition = response.headers.get('Content-Disposition');
+        let filename = 'inventory_slips.docx';
+        if (contentDisposition) {
+            const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+            if (filenameMatch && filenameMatch[1]) {
+                filename = filenameMatch[1].replace(/['"]/g, '');
+            }
+        }
+        return response.blob().then(blob => ({ blob, filename }));
+    })
+    .then(({ blob, filename }) => {
+        updateProgress(100, 'Generation complete!');
+        // Create download link
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        setTimeout(() => {
+            progressModal.hide();
+        }, 1000);
+    })
+    .catch(error => {
+        progressModal.hide();
+        alert('Error generating slips: ' + error.message);
+    });
+}
+
+// Handle select all checkbox
+document.getElementById('selectAllCheckbox').addEventListener('change', function() {
+    document.querySelectorAll('.product-checkbox').forEach(checkbox => {
+        checkbox.checked = this.checked;
+            });
+        });
+    
+// Update select all checkbox when individual checkboxes change
+document.querySelectorAll('.product-checkbox').forEach(checkbox => {
+    checkbox.addEventListener('change', function() {
+        const allChecked = Array.from(document.querySelectorAll('.product-checkbox'))
+            .every(cb => cb.checked);
+        document.getElementById('selectAllCheckbox').checked = allChecked;
+    });
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,8 @@
+flask==2.3.3
+flask-session==0.5.0
+pandas==2.1.0
+docxtpl==0.16.7
+python-docx==0.8.11
+docxcompose==1.4.0
+werkzeug==2.3.7
+gunicorn==21.2.0

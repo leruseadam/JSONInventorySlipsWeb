@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+
+{% block title %}Settings{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8 mx-auto">
+        <div class="card">
+            <div class="card-header">
+                <h4><i class="fas fa-cogs"></i> Settings</h4>
+            </div>
+            <div class="card-body">
+                <form action="{{ url_for('settings') }}" method="post">
+                    <!-- Application Settings -->
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h5><i class="fas fa-sliders-h"></i> Application Settings</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="mb-3">
+                                <label for="itemsPerPage" class="form-label">Items per page</label>
+                                <select class="form-select" id="itemsPerPage" name="items_per_page">
+                                    <option value="2" {% if config['SETTINGS'].get('items_per_page') == '2' %}selected{% endif %}>2</option>
+                                    <option value="4" {% if config['SETTINGS'].get('items_per_page') == '4' %}selected{% endif %}>4</option>
+                                    <option value="6" {% if config['SETTINGS'].get('items_per_page') == '6' %}selected{% endif %}>6</option>
+                                    <option value="8" {% if config['SETTINGS'].get('items_per_page') == '8' %}selected{% endif %}>8</option>
+                                </select>
+                                <div class="form-text">Number of inventory items to include on each page in the document.</div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="theme" class="form-label">Theme</label>
+                                <select class="form-select" id="theme" name="theme">
+                                    <option value="dark" {% if config['SETTINGS'].get('theme') == 'dark' %}selected{% endif %}>Dark</option>
+                                    <option value="light" {% if config['SETTINGS'].get('theme') == 'light' %}selected{% endif %}>Light</option>
+                                    <option value="green" {% if config['SETTINGS'].get('theme') == 'green' %}selected{% endif %}>Green</option>
+                                </select>
+                                <div class="form-text">User interface color theme.</div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="outputDir" class="form-label">Output Directory</label>
+                                <input type="text" class="form-control" id="outputDir" name="output_dir" 
+                                       value="{{ config['PATHS'].get('output_dir') }}">
+                                <div class="form-text">Directory where generated files will be saved.</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- API Settings -->
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h5><i class="fas fa-key"></i> API Settings</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="mb-3">
+                                <label for="apiKey" class="form-label">Bamboo API Key</label>
+                                <input type="password" class="form-control" id="apiKey" name="api_key" 
+                                       value="{{ config['API'].get('bamboo_key', '') if 'API' in config else '' }}">
+                                <div class="form-text">API key for Bamboo integration. Leave empty if not using Bamboo.</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="text-center">
+                        <button type="submit" class="btn btn-primary btn-lg">
+                            <i class="fas fa-save"></i> Save Settings
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Preview theme changes
+    document.getElementById('theme').addEventListener('change', function() {
+        alert('Theme changes will be applied after saving settings and refreshing the page.');
+    });
+</script>
+{% endblock %}
