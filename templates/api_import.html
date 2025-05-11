@@ -1,0 +1,169 @@
+{% extends "base.html" %}
+
+{% block title %}API Import{% endblock %}
+
+{% block content %}
+<div class="api-import-page">
+    <div class="row">
+        <div class="col-lg-10 mx-auto">
+            <div class="card">
+                <div class="card-header">
+                    <h4><i class="fas fa-cloud-download-alt"></i> API Import</h4>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i> This page allows you to import data directly from Bamboo or Cultivera APIs.
+                    </div>
+                    
+                    <!-- API Format Selector -->
+                    <div class="row mb-4">
+                        <div class="col-md-12">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h5><i class="fas fa-code-branch"></i> API Format</h5>
+                                </div>
+                                <div class="card-body">
+                                    <div class="d-flex">
+                                        <div class="form-check form-check-inline">
+                                            <input class="form-check-input" type="radio" name="apiFormat" id="apiAuto" value="auto" checked>
+                                            <label class="form-check-label" for="apiAuto">Auto-detect</label>
+                                        </div>
+                                        <div class="form-check form-check-inline">
+                                            <input class="form-check-input" type="radio" name="apiFormat" id="apiBamboo" value="bamboo">
+                                            <label class="form-check-label" for="apiBamboo">Bamboo</label>
+                                        </div>
+                                        <div class="form-check form-check-inline">
+                                            <input class="form-check-input" type="radio" name="apiFormat" id="apiCultivera" value="cultivera">
+                                            <label class="form-check-label" for="apiCultivera">Cultivera</label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- API Fetch Form -->
+                    <form action="{{ url_for('fetch_api') }}" method="post" class="bright-form">
+                        <input type="hidden" name="api_type" id="apiTypeHidden" value="auto">
+                        
+                        <div class="row mb-4">
+                            <div class="col-md-8">
+                                <div class="card h-100">
+                                    <div class="card-header">
+                                        <h5><i class="fas fa-link"></i> API URL</h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="mb-3">
+                                            <label for="apiUrl" class="form-label">Enter API URL</label>
+                                            <input type="url" class="form-control" id="apiUrl" name="url" required
+                                                   placeholder="https://api-trace.getbamboo.com/shared/manifests/json/YOUR_KEY">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-4">
+                                <div class="card h-100">
+                                    <div class="card-header">
+                                        <h5><i class="fas fa-key"></i> API Key</h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="mb-3">
+                                            <label for="apiKey" class="form-label">Enter API Key (optional)</label>
+                                            <input type="password" class="form-control" id="apiKey" name="api_key" 
+                                                   value="{{ api_key }}">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="text-center mb-4">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="fas fa-download"></i> Fetch Data
+                            </button>
+                        </div>
+                    </form>
+                    
+                    <!-- Recent URLs -->
+                    {% if recent_urls %}
+                    <div class="card">
+                        <div class="card-header">
+                            <h5><i class="fas fa-history"></i> Recent URLs</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="list-group">
+                                {% for url in recent_urls %}
+                                <a href="#" class="list-group-item list-group-item-action recent-url-item" data-url="{{ url }}">
+                                    {{ url }}
+                                </a>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- JSON Paste -->
+                    <div class="card mt-4">
+                        <div class="card-header">
+                            <h5><i class="fas fa-paste"></i> Paste JSON Data</h5>
+                        </div>
+                        <div class="card-body">
+                            <form action="{{ url_for('paste_json') }}" method="post">
+                                <input type="hidden" name="api_format" id="apiFormatPaste" value="auto">
+                                
+                                <div class="mb-3">
+                                    <label for="jsonTextarea" class="form-label">Paste JSON Data</label>
+                                    <textarea class="form-control" id="jsonTextarea" name="json_text" rows="10" 
+                                              placeholder="Paste your JSON data here..."></textarea>
+                                </div>
+                                
+                                <div class="text-center">
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="fas fa-file-import"></i> Import JSON Data
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Update hidden form fields when API format changes
+    document.querySelectorAll('input[name="apiFormat"]').forEach(radio => {
+        radio.addEventListener('change', function() {
+            const value = this.value;
+            document.getElementById('apiTypeHidden').value = value;
+            document.getElementById('apiFormatPaste').value = value;
+        });
+    });
+    
+    // Fill URL input when clicking on recent URL
+    document.querySelectorAll('.recent-url-item').forEach(item => {
+        item.addEventListener('click', function(e) {
+            e.preventDefault();
+            const url = this.getAttribute('data-url');
+            document.getElementById('apiUrl').value = url;
+        });
+    });
+    
+    // Format JSON when pasted
+    document.getElementById('jsonTextarea').addEventListener('paste', function() {
+        setTimeout(function() {
+            const jsonText = document.getElementById('jsonTextarea');
+            try {
+                const json = JSON.parse(jsonText.value);
+                jsonText.value = JSON.stringify(json, null, 2);
+            } catch (e) {
+                // Not valid JSON, leave as is
+            }
+        }, 0);
+    });
+</script>
+{% endblock %}

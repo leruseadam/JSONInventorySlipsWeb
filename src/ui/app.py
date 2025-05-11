@@ -97,7 +97,6 @@ class InventorySlipGenerator(BaseUI):
         # Create tabs
         self.create_data_tab()
         self.create_preview_tab()
-        self.create_bamboo_tab()
         
         # Status frame
         self.status_frame = ttk.Frame(self.root, style="TFrame")
@@ -124,12 +123,16 @@ class InventorySlipGenerator(BaseUI):
         self.progress_bar.pack(side=tk.RIGHT, padx=10, pady=5)
     
     def create_menu(self):
+        # Use bright colors for the menu
+        bright_bg = "#f9f9f9"   # Very light background
+        bright_fg = "#222222"   # Dark text for contrast
+
         # Main menu bar
-        self.menu_bar = tk.Menu(self.root, bg=self.colors.get("bg_secondary"), fg=self.colors.get("fg_main"))
+        self.menu_bar = tk.Menu(self.root, bg=bright_bg, fg=bright_fg)
         self.root.config(menu=self.menu_bar)
         
         # File menu
-        self.file_menu = tk.Menu(self.menu_bar, tearoff=0, bg=self.colors.get("bg_secondary"), fg=self.colors.get("fg_main"))
+        self.file_menu = tk.Menu(self.menu_bar, tearoff=0, bg=bright_bg, fg=bright_fg)
         self.menu_bar.add_cascade(label="File", menu=self.file_menu)
         self.file_menu.add_command(label="Open CSV File...", command=self.load_csv)
         self.file_menu.add_command(label="Load from URL...", command=self.show_url_dialog)
@@ -257,18 +260,9 @@ class InventorySlipGenerator(BaseUI):
         )
         self.load_csv_btn.pack(side=tk.LEFT, padx=(5, 0))
         
-        self.api_import_btn = ttk.Button(
-            button_frame,
-            text="API Import",
-            command=lambda: self.notebook.select(2),  # Switch to API tab
-            style="TButton"
-        )
-        self.api_import_btn.pack(side=tk.LEFT, padx=(10, 0))
-        
         # Add tooltips
         self.create_tooltip(self.load_json_btn, "Load inventory data from a JSON URL")
         self.create_tooltip(self.load_csv_btn, "Upload inventory data from a CSV file")
-        self.create_tooltip(self.api_import_btn, "Open advanced API import options")
         
         # Selection frame
         select_frame = ttk.Frame(self.data_tab, style="TFrame")
@@ -538,127 +532,7 @@ class InventorySlipGenerator(BaseUI):
         self.generate_preview_btn.pack(side=tk.RIGHT)
     
     def create_bamboo_tab(self):
-        # Bamboo API Tab
-        self.bamboo_tab = ttk.Frame(self.notebook, style="TFrame")
-        self.notebook.add(self.bamboo_tab, text="API Import")
-        
-        # API Key frame
-        api_frame = ttk.Frame(self.bamboo_tab, style="TFrame", padding=(0, 10))
-        api_frame.pack(fill=tk.X, padx=10, pady=10)
-        
-        ttk.Label(api_frame, text="Bamboo API Key:", style="TLabel").pack(anchor=tk.W)
-        
-        self.api_key_entry = tk.Entry(
-            api_frame,
-            font=("Arial", 11),
-            bg=self.colors.get("entry_bg"),
-            fg=self.colors.get("entry_fg"),
-            insertbackground=self.colors.get("fg_main")
-        )
-        self.api_key_entry.pack(fill=tk.X, pady=(5, 0))
-        
-        # Add right-click menu to API key entry
-        self.create_context_menu(self.api_key_entry)
-        
-        # Help text below API key entry
-        ttk.Label(
-            api_frame,
-            text="Enter your Bamboo API key to fetch inventory data",
-            font=("Arial", 9, "italic"),
-            style="TLabel"
-        ).pack(anchor=tk.W, pady=(5, 0))
-        
-        # Date range frame
-        date_frame = ttk.Frame(self.bamboo_tab, style="TFrame")
-        date_frame.pack(fill=tk.X, padx=10, pady=10)
-        
-        ttk.Label(date_frame, text="Date Range:", style="TLabel").pack(anchor=tk.W)
-        
-        # Date range controls
-        date_controls = ttk.Frame(date_frame, style="TFrame")
-        date_controls.pack(fill=tk.X, pady=(5, 0))
-        
-        # Start date
-        ttk.Label(date_controls, text="From:", style="TLabel").pack(side=tk.LEFT, padx=(0, 5))
-        self.start_date_entry = tk.Entry(
-            date_controls,
-            font=("Arial", 11),
-            bg=self.colors.get("entry_bg"),
-            fg=self.colors.get("entry_fg"),
-            insertbackground=self.colors.get("fg_main")
-        )
-        self.start_date_entry.pack(side=tk.LEFT, padx=(0, 20))
-        
-        # End date
-        ttk.Label(date_controls, text="To:", style="TLabel").pack(side=tk.LEFT, padx=(0, 5))
-        self.end_date_entry = tk.Entry(
-            date_controls,
-            font=("Arial", 11),
-            bg=self.colors.get("entry_bg"),
-            fg=self.colors.get("entry_fg"),
-            insertbackground=self.colors.get("fg_main")
-        )
-        self.end_date_entry.pack(side=tk.LEFT)
-        
-        # Add right-click menus to date entries
-        self.create_context_menu(self.start_date_entry)
-        self.create_context_menu(self.end_date_entry)
-        
-        # Help text below date range
-        ttk.Label(
-            date_frame,
-            text="Enter date range in YYYY-MM-DD format",
-            font=("Arial", 9, "italic"),
-            style="TLabel"
-        ).pack(anchor=tk.W, pady=(5, 0))
-        
-        # Button frame
-        button_frame = ttk.Frame(self.bamboo_tab, style="TFrame")
-        button_frame.pack(fill=tk.X, padx=10, pady=10)
-        
-        # Fetch data button
-        self.fetch_data_btn = ttk.Button(
-            button_frame,
-            text="Fetch Data",
-            command=self.fetch_bamboo_data,
-            style="TButton"
-        )
-        self.fetch_data_btn.pack(side=tk.LEFT)
-        
-        # Save API key button
-        self.save_api_btn = ttk.Button(
-            button_frame,
-            text="Save API Key",
-            command=self.save_api_key,
-            style="TButton"
-        )
-        self.save_api_btn.pack(side=tk.RIGHT)
-        
-        # Add tooltips
-        self.create_tooltip(self.fetch_data_btn, "Fetch inventory data from Bamboo API")
-        self.create_tooltip(self.save_api_btn, "Save API key for future use")
-        
-        # Status frame
-        status_frame = ttk.Frame(self.bamboo_tab, style="TFrame")
-        status_frame.pack(fill=tk.X, padx=10, pady=10)
-        
-        self.api_status_var = tk.StringVar(value="Ready")
-        self.api_status_label = ttk.Label(
-            status_frame,
-            textvariable=self.api_status_var,
-            style="TLabel"
-        )
-        self.api_status_label.pack(side=tk.LEFT)
-        
-        # Progress bar
-        self.api_progress_var = tk.IntVar(value=0)
-        self.api_progress_bar = ttk.Progressbar(
-            status_frame,
-            variable=self.api_progress_var,
-            mode='determinate',
-            length=200
-        )
-        self.api_progress_bar.pack(side=tk.RIGHT)
+        pass
     
     def load_csv(self):
         file_path = filedialog.askopenfilename(

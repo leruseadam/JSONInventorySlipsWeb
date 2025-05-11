@@ -352,10 +352,21 @@
             <div class="custom-tab {% block tab_preview_active %}{% endblock %}" onclick="window.location.href='{{ url_for('settings') }}'">
                 Preview & Settings
             </div>
-            <div class="custom-tab {% block tab_api_active %}{% endblock %}" onclick="window.location.href='{{ url_for('api_import') }}'">
-                API Import
-            </div>
+            <!-- API Import tab removed -->
         </div>
+        
+        <!-- Import from URL -->
+        <form action="{{ url_for('load_url') }}" method="post" class="mb-3">
+            <label for="json_url" class="form-label">Import from URL</label>
+            <div class="input-group">
+                <input type="url" class="form-control" id="json_url" name="url"
+                       placeholder="Enter JSON URL (Bamboo or Cultivera)" required>
+                <button class="btn btn-primary" type="submit">
+                    <i class="fas fa-download"></i> Load
+                </button>
+            </div>
+            <div class="form-text">Enter a URL to fetch JSON data from Bamboo or Cultivera.</div>
+        </form>
         
         <!-- Content Area -->
         {% block content %}{% endblock %}

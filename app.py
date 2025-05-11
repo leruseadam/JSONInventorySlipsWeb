@@ -929,27 +929,6 @@ def settings():
         version=APP_VERSION
     )
 
-@app.route('/api-import')
-def api_import():
-    config = load_config()
-    
-    # Get Bamboo API key from config
-    api_key = ''
-    if 'API' in config and 'bamboo_key' in config['API']:
-        api_key = config['API']['bamboo_key']
-    
-    # Get recent URLs
-    recent_urls = config['PATHS'].get('recent_urls', '').split('|')
-    recent_urls = [u for u in recent_urls if u]
-    
-    return render_template(
-        'api_import.html',
-        api_key=api_key,
-        recent_urls=recent_urls,
-        theme=config['SETTINGS'].get('theme', 'dark'),
-        version=APP_VERSION
-    )
-
 @app.route('/view-json')
 def view_json():
     raw_json = session.get('raw_json', None)
@@ -989,6 +968,47 @@ def about():
         version=APP_VERSION,
         theme=config['SETTINGS'].get('theme', 'dark')
     )
+
+@app.route('/search-json-or-api', methods=['POST'])
+def search_json_or_api():
+    user_input = request.form.get('search_input', '').strip()
+    if not user_input:
+        flash('Please enter JSON data or an API URL.')
+        return redirect(url_for('index'))
+
+    # Try to detect if input is a URL
+    if user_input.startswith('http://') or user_input.startswith('https://'):
+        try:
+            with urllib.request.urlopen(user_input) as resp:
+                data = json.loads(resp.read().decode())
+            result_df, format_type = parse_inventory_json(data)
+            if result_df is None or result_df.empty:
+                flash(f'Could not process data from URL.')
+                return redirect(url_for('index'))
+            session['df_json'] = result_df.to_json(orient='records')
+            session['format_type'] = format_type
+            session['raw_json'] = json.dumps(data)
+            flash(f'{format_type} data loaded successfully from URL')
+            return redirect(url_for('data_view'))
+        except Exception as e:
+            flash(f'Failed to load data from URL: {str(e)}')
+            return redirect(url_for('index'))
+    else:
+        # Try to parse as JSON
+        try:
+            data = json.loads(user_input)
+            result_df, format_type = parse_inventory_json(data)
+            if result_df is None or result_df.empty:
+                flash(f'Could not process pasted JSON data.')
+                return redirect(url_for('index'))
+            session['df_json'] = result_df.to_json(orient='records')
+            session['format_type'] = format_type
+            session['raw_json'] = user_input
+            flash(f'{format_type} data imported successfully')
+            return redirect(url_for('data_view'))
+        except Exception as e:
+            flash(f'Failed to import JSON data: {str(e)}')
+            return redirect(url_for('index'))
 
 # Error handlers
 @app.errorhandler(404)

@@ -1,0 +1,219 @@
+/* General styles */
+body {
+    background: #1E1E2E;
+    color: #f1f3f6;
+    font-family: 'Segoe UI', Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+}
+
+/* Card styles */
+.card {
+    background: #1E1E2E;
+    border-radius: 10px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    margin-bottom: 24px;
+    padding: 0;
+    border: none;
+}
+
+.card-header {
+    background: #1E1E2E;
+    border-bottom: 1px solid #e0e0e0;
+    border-radius: 10px 10px 0 0;
+    padding: 16px 20px;
+}
+
+.card-body {
+    padding: 20px;
+    color: #f1f3f6;
+}
+
+/* Form styles */
+.mb-3 .form-label,
+.form-label {
+    color: #fff !important;
+    font-weight: 500;
+    margin-bottom: 6px;
+}
+
+.form-control, .form-select, textarea {
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-size: 1em;
+    width: 100%;
+    margin-bottom: 8px;
+    background: #232336;   /* dark background for input */
+    color: #f1f3f6;        /* light text for input */
+}
+
+.form-control:focus, .form-select:focus, textarea:focus {
+    outline: none;
+    border-color: #007bff;
+    background: #fff;
+}
+
+.form-text {
+    color: #e0e0e0;
+}
+
+.btn {
+    background: #007bff;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    padding: 8px 18px;
+    font-size: 1em;
+    cursor: pointer;
+    transition: background 0.2s;
+    margin-top: 8px;
+}
+
+.btn:hover, .btn:focus {
+    background: #0056b3;
+}
+
+hr {
+    border: none;
+    border-top: 1px solid #e0e0e0;
+    margin: 20px 0;
+    
+}
+
+/* Info icons */
+.fa-info-circle, .fa-file-csv, .fa-code, .fa-file-word {
+    margin-right: 6px;
+    
+    
+}
+
+/* Responsive layout */
+@media (max-width: 900px) {
+    .row {
+        flex-direction: column;
+    }
+    .col-md-8, .col-md-4 {
+        width: 100%;
+        max-width: 100%;
+        color: #d1d5db
+    }
+    
+}
+
+/* Logo */
+img[alt="logo"] {
+    display: block;
+    margin: 24px auto 0 auto;
+    max-width: 180px;
+    height: auto;
+}
+
+/* Bright form styles */
+.bright-form .form-label {
+    color: #d1d5db !important;
+}
+
+.bright-form .form-control,
+.bright-form .form-select,
+.bright-form textarea {
+    background: #fff !important;
+    color: #222 !important;
+    border: 1px solid #d1d5db;
+}
+
+.bright-form .form-control::placeholder,
+.bright-form .form-select::placeholder,
+.bright-form textarea::placeholder {
+    color: #888 !important;   /* or #222 for even darker */
+    opacity: 1;               /* Ensure full opacity */
+}
+
+/* For dark theme (default) */
+.form-control::placeholder,
+.form-select::placeholder,
+textarea::placeholder {
+    color: #f1f3f6 !important;  /* white or near-white */
+    opacity: 1;
+}
+
+/* For bright-form (overrides dark) */
+.bright-form .form-control::placeholder,
+.bright-form .form-select::placeholder,
+.bright-form textarea::placeholder {
+    color: #222 !important;     /* dark for bright forms */
+    opacity: 1;
+}
+
+/* For dark theme or API import form only */
+.card-body .form-label,
+.api-import-form .form-label {
+    color: #fff !important;
+}
+
+/* Make all text in .card-body white for dark theme */
+.api-import-form .card-body,
+.api-import-form .form-label,
+.api-import-form label,
+.api-import-form input,
+.api-import-form select,
+.api-import-form textarea,
+.api-import-form .form-check-label {
+    color: #fff !important;
+}
+
+/* Make radio button labels white */
+.api-import-form .form-check-label {
+    color: #fff !important;
+}
+
+/* Make input backgrounds dark and text white */
+.api-import-form .form-control,
+.api-import-form .form-select,
+.api-import-form textarea {
+    background: #232336 !important;
+    color: #fff !important;
+    border: 1px solid #d1d5db;
+}
+
+/* Make placeholder text white */
+.api-import-form .form-control::placeholder,
+.api-import-form .form-select::placeholder,
+.api-import-form textarea::placeholder {
+    color: #bbb !important;
+    opacity: 1;
+}
+
+/* Force form-labels inside cards to be white */
+.card .form-label,
+.card-body .form-label,
+.form-label {
+    color: #fff !important;
+}
+
+.api-import-page .form-label {
+    color: #fff !important;
+}
+
+/* Force all form-labels on the API Import page to be white */
+.api-import-page .form-label {
+    color: #fff !important;
+}
+
+/* Prevent buttons from stretching full width */
+.btn, button, input[type="submit"], input[type="button"] {
+    width: auto !important;
+    min-width: 120px;
+    max-width: 100%;
+}
+
+.input-group .btn {
+    margin-top: 0 !important;
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+}
+
+.input-group .form-control {
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+}

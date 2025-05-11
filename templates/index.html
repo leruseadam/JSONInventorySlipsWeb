@@ -10,6 +10,19 @@
                 <h5 class="mb-0"><i class="fas fa-upload"></i> Import Data</h5>
             </div>
             <div class="card-body">
+                <!-- Import from URL -->
+                <form action="{{ url_for('load_url') }}" method="post" class="mb-3">
+                    <label for="json_url" class="form-label">Import from URL</label>
+                    <div class="input-group">
+                        <input type="url" class="form-control" id="json_url" name="url"
+                               placeholder="Enter JSON URL (Bamboo or Cultivera)" required>
+                        <button class="btn btn-primary" type="submit" style="margin-top:0;">
+                            <i class="fas fa-download"></i> Load
+                        </button>
+                    </div>
+                    <div class="form-text">Enter a URL to fetch JSON data from Bamboo or Cultivera.</div>
+                </form>
+                <hr>
                 <form action="{{ url_for('upload_csv') }}" method="post" enctype="multipart/form-data">
                     <div class="mb-3">
                         <label for="file" class="form-label">Upload CSV File</label>
@@ -24,20 +37,6 @@
                 <hr>
 
                 <div class="mb-3">
-                    <label for="json_url" class="form-label">Import from URL</label>
-                    <div class="input-group">
-                        <input type="url" class="form-control" id="json_url" name="json_url" 
-                               placeholder="Enter JSON URL (Bamboo or Cultivera)">
-                        <button class="btn btn-primary" type="button" onclick="loadFromUrl()">
-                            <i class="fas fa-download"></i> Load
-                        </button>
-                    </div>
-                    <div class="form-text">Enter a URL to fetch JSON data from Bamboo or Cultivera.</div>
-                </div>
-
-                <hr>
-
-                <div class="mb-3">
                     <label for="json_data" class="form-label">Paste JSON Data</label>
                     <textarea class="form-control" id="json_data" name="json_data" rows="5" 
                               placeholder="Paste your JSON data here..."></textarea>
@@ -46,6 +45,15 @@
                 <button class="btn btn-primary" onclick="processJsonData()">
                     <i class="fas fa-code"></i> Process JSON
                 </button>
+
+                <hr>
+
+                <form action="{{ url_for('search_json_or_api') }}" method="post" class="mb-4">
+                    <label for="searchInput" class="form-label">Paste JSON data or enter API URL</label>
+                    <textarea class="form-control mb-2" id="searchInput" name="search_input" rows="4"
+                        placeholder='Paste JSON here or enter an API URL (e.g., https://api-trace.getbamboo.com/shared/manifests/json/YOUR_KEY)'></textarea>
+                    <button type="submit" class="btn btn-primary mt-2">Import Data</button>
+                </form>
             </div>
         </div>
     </div>
@@ -162,4 +170,8 @@ function processJsonData() {
     });
 }
 </script>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+<img src="{{ url_for('static', filename='images/logo.png') }}">
+<script src="{{ url_for('static', filename='script.js') }}"></script>
 {% endblock %}
+app = Flask(__name__, static_folder='static')
