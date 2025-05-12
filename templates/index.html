@@ -170,8 +170,4 @@ function processJsonData() {
     });
 }
 </script>
-<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-<img src="{{ url_for('static', filename='images/logo.png') }}">
-<script src="{{ url_for('static', filename='script.js') }}"></script>
 {% endblock %}
-app = Flask(__name__, static_folder='static')

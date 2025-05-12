@@ -6,6 +6,7 @@
     <title>{% block title %}Inventory Slip Generator{% endblock %}</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <style>
         :root {
             --primary-color: #1E1E2E;
@@ -95,12 +96,12 @@
 
         .alert-success {
             background-color: var(--success-color);
-            border-color: var(--success-color);
+            border-color: var (--success-color);
             color: var(--primary-color);
         }
 
         .alert-danger {
-            background-color: var(--error-color);
+            background-color: var (--error-color);
             border-color: var(--error-color);
             color: var(--primary-color);
         }
@@ -185,6 +186,9 @@
     {% block extra_css %}{% endblock %}
 </head>
 <body>
+    <header>
+        <img src="{{ url_for('static', filename='images/logo.png') }}" alt="logo" class="header-logo">
+    </header>
     <nav class="navbar navbar-expand-lg navbar-dark">
         <div class="container">
             <a class="navbar-brand" href="{{ url_for('index') }}">
@@ -238,13 +242,14 @@
     </div>
 
     <footer class="footer mt-5 py-3">
-        <div class="container text-center">
+        <div class="container text-center"></div>
             <span class="text-muted">Inventory Slip Generator v{{ config.APP_VERSION }}</span>
         </div>
     </footer>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
     {% block extra_js %}{% endblock %}
 </body>
 </html>

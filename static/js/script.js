@@ -1,3 +1,9 @@
+// Common JavaScript functions
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('Script loaded successfully');
+    // Add your common JavaScript functionality here
+});
+
 // Load JSON data from a URL and process it
 function loadFromUrl() {
     const url = document.getElementById('json_url').value;

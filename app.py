@@ -3,7 +3,7 @@ Flask Inventory Slip Generator - Web application for generating inventory slips
 from CSV and JSON data with support for Bamboo and Cultivera formats.
 """
 
-from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, session, send_file
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, session, send_file, send_from_directory
 import os
 import sys
 import json
@@ -45,7 +45,11 @@ os.makedirs(DEFAULT_SAVE_DIR, exist_ok=True)
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 # Initialize Flask application
-app = Flask(__name__)
+app = Flask(__name__,
+    static_url_path='',
+    static_folder='static',
+    template_folder='templates'
+)
 app.secret_key = os.urandom(24)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['MAX_CONTENT_LENGTH'] = MAX_CONTENT_LENGTH
@@ -653,44 +657,195 @@ def paste_json():
 
 @app.route('/load-url', methods=['POST'])
 def load_url():
-    url = request.form.get('url', '')
-    
-    if not url.startswith('http'):
-        flash('Please enter a valid URL starting with http:// or https://')
-        return redirect(url_for('index'))
-    
     try:
-        # Fetch data from URL
-        with urllib.request.urlopen(url) as resp:
+        url = request.form.get('url', '').strip()
+        
+        if not url:
+            flash('Please enter a URL', 'error')
+            return redirect(url_for('index'))
+        
+        # Check if it's a Bamboo URL
+        if "bamboo" in url.lower() or "getbamboo" in url.lower():
+            return handle_bamboo_url(url)
+        else:
+            return load_from_url(url)
+            
+    except Exception as e:
+        logger.error(f'Error loading URL: {str(e)}', exc_info=True)
+        flash(f'Error loading data: {str(e)}', 'error')
+        return redirect(url_for('index'))
+
+def load_from_url(url):
+    """Handle loading JSON from generic URLs"""
+    if not url.startswith(('http://', 'https://')):
+        flash('Please enter a valid URL starting with http:// or https://', 'error')
+        return redirect(url_for('index'))
+
+    try:
+        # Set up headers
+        headers = {
+            'User-Agent': f'InventorySlipGenerator/{APP_VERSION}',
+            'Accept': 'application/json'
+        }
+        
+        # Fetch data
+        req = urllib.request.Request(url, headers=headers)
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            raw_data = resp.read()
+            
+            # Check if we got any data
+            if not raw_data:
+                raise ValueError("Empty response received")
+            
+            # Try to decode and parse JSON with better error handling
+            try:
+                # First try UTF-8 decoding with strict error handling
+                decoded_data = raw_data.decode('utf-8', errors='strict').strip()
+                if not decoded_data:
+                    raise ValueError("Empty response after decoding")
+                
+                # Log the received data for debugging
+                logger.debug(f"Received data: {decoded_data[:200]}...")  # Log first 200 chars
+                
+                # Try to parse JSON
+                data = json.loads(decoded_data)
+                
+                # Validate JSON structure
+                if not isinstance(data, (dict, list)):
+                    raise ValueError("Invalid JSON structure - expecting object or array")
+                
+                # Process the JSON data
+                result_df, format_type = parse_inventory_json(data)
+                
+                if result_df is None or result_df.empty:
+                    raise ValueError(f"Could not process data: {format_type}")
+                
+                # Store in session
+                session['df_json'] = result_df.to_json(orient='records')
+                session['format_type'] = format_type
+                session['raw_json'] = json.dumps(data)
+                
+                # Update recent URLs
+                config = load_config()
+                recent_urls = config['PATHS'].get('recent_urls', '').split('|')
+                recent_urls = [u for u in recent_urls if u]
+                if url not in recent_urls:
+                    recent_urls.insert(0, url)
+                    recent_urls = recent_urls[:10]
+                    config['PATHS']['recent_urls'] = '|'.join(recent_urls)
+                    save_config(config)
+                
+                flash(f'{format_type} data loaded successfully', 'success')
+                return redirect(url_for('data_view'))
+                
+            except json.JSONDecodeError as e:
+                logger.error(f"JSON decode error: {str(e)}")
+                logger.error(f"Attempted to parse: {decoded_data[:200]}...")  # Log problematic data
+                raise ValueError(f"Invalid JSON format: {str(e)}")
+            except UnicodeDecodeError as e:
+                logger.error(f"Unicode decode error: {str(e)}")
+                raise ValueError("Invalid character encoding in response")
+            
+    except ValueError as e:
+        flash(str(e), 'error')
+        return redirect(url_for('index'))
+    except urllib.error.URLError as e:
+        logger.error(f"URL error: {str(e)}")
+        flash(f'Failed to connect to URL: {str(e)}', 'error')
+        return redirect(url_for('index'))
+    except Exception as e:
+        logger.error(f'Error loading URL: {str(e)}', exc_info=True)
+        flash(f'Failed to load data: {str(e)}', 'error')
+        return redirect(url_for('index'))
+
+def handle_bamboo_url(url):
+    """Handle Bamboo-specific URL loading with API key support"""
+    try:
+        # Set up headers
+        headers = {
+            'User-Agent': f'InventorySlipGenerator/{APP_VERSION}',
+            'Accept': 'application/json',
+            'Content-Type': 'application/json'
+        }
+        
+        # Check for API key
+        config = load_config()
+        if 'API' in config and config['API'].get('bamboo_key'):
+            headers['Authorization'] = f"Bearer {config['API']['bamboo_key']}"
+        
+        # Fetch data
+        req = urllib.request.Request(url, headers=headers)
+        with urllib.request.urlopen(req, timeout=10) as resp:
             data = json.loads(resp.read().decode())
+            
+        # Process Bamboo data
+        result_df = parse_bamboo_data(data)
         
-        # Process the data
-        result_df, format_type = parse_inventory_json(data)
-        
-        if result_df is None:
-            flash(f'Could not parse data: {format_type}')
+        if result_df is None or result_df.empty:
+            flash('Could not process Bamboo data', 'error')
             return redirect(url_for('index'))
         
         # Store in session
         session['df_json'] = result_df.to_json(orient='records')
-        session['format_type'] = format_type
+        session['format_type'] = 'Bamboo'
         session['raw_json'] = json.dumps(data)
         
-        # Add to recent URLs
-        config = load_config()
+        # Cache the response
+        cache_dir = os.path.join(os.path.expanduser("~"), ".inventory_slip_cache")
+        os.makedirs(cache_dir, exist_ok=True)
+        with open(os.path.join(cache_dir, "bamboo_latest.json"), 'w') as f:
+            json.dump(data, f)
+        
+        # Update recent URLs
         recent_urls = config['PATHS'].get('recent_urls', '').split('|')
         recent_urls = [u for u in recent_urls if u]
         if url not in recent_urls:
             recent_urls.insert(0, url)
-            recent_urls = recent_urls[:10]  # Keep only 10 most recent
+            recent_urls = recent_urls[:10]
             config['PATHS']['recent_urls'] = '|'.join(recent_urls)
             save_config(config)
         
-        flash(f'{format_type} data loaded successfully from URL')
+        flash('Bamboo data loaded successfully', 'success')
         return redirect(url_for('data_view'))
-    
+        
+    except urllib.error.HTTPError as e:
+        if e.code == 403:
+            return handle_bamboo_forbidden()
+        flash(f'API Error: {e.code} - {e.reason}', 'error')
+        return redirect(url_for('index'))
     except Exception as e:
-        flash(f'Failed to load data from URL: {str(e)}')
+        logger.error(f'Error loading Bamboo data: {str(e)}', exc_info=True)
+        flash(f'Failed to load Bamboo data: {str(e)}', 'error')
+        return redirect(url_for('index'))
+
+def handle_bamboo_forbidden():
+    """Handle forbidden Bamboo API access by using cached data"""
+    try:
+        cache_file = os.path.join(os.path.expanduser("~"), ".inventory_slip_cache", "bamboo_latest.json")
+        
+        if os.path.exists(cache_file):
+            with open(cache_file, 'r') as f:
+                data = json.load(f)
+            
+            result_df = parse_bamboo_data(data)
+            
+            if result_df is None or result_df.empty:
+                flash('Could not process cached Bamboo data', 'error')
+                return redirect(url_for('index'))
+            
+            session['df_json'] = result_df.to_json(orient='records')
+            session['format_type'] = 'Bamboo'
+            session['raw_json'] = json.dumps(data)
+            
+            flash('Using cached Bamboo data (API access forbidden). Please check your API credentials.', 'warning')
+            return redirect(url_for('data_view'))
+        else:
+            flash('No cached Bamboo data available. Please check your API credentials.', 'error')
+            return redirect(url_for('index'))
+            
+    except Exception as e:
+        logger.error(f'Error loading cached data: {str(e)}', exc_info=True)
+        flash(f'Failed to load cached data: {str(e)}', 'error')
         return redirect(url_for('index'))
 
 @app.route('/fetch-api', methods=['POST'])
