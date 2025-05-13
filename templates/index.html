@@ -3,122 +3,120 @@
 {% block title %}Home - Inventory Slip Generator{% endblock %}
 
 {% block content %}
-<div class="row">
+<div class="container mt-4">
+  <div class="row">
     <div class="col-md-8">
-        <div class="card">
-            <div class="card-header">
-                <h5 class="mb-0"><i class="fas fa-upload"></i> Import Data</h5>
-            </div>
-            <div class="card-body">
-                <!-- Import from URL -->
-                <form action="{{ url_for('load_url') }}" method="post" class="mb-3">
-                    <label for="json_url" class="form-label">Import from URL</label>
-                    <div class="input-group">
-                        <input type="url" class="form-control" id="json_url" name="url"
-                               placeholder="Enter JSON URL (Bamboo or Cultivera)" required>
-                        <button class="btn btn-primary" type="submit" style="margin-top:0;">
-                            <i class="fas fa-download"></i> Load
-                        </button>
-                    </div>
-                    <div class="form-text">Enter a URL to fetch JSON data from Bamboo or Cultivera.</div>
-                </form>
-                <hr>
-                <form action="{{ url_for('upload_csv') }}" method="post" enctype="multipart/form-data">
-                    <div class="mb-3">
-                        <label for="file" class="form-label">Upload CSV File</label>
-                        <input type="file" class="form-control" id="file" name="file" accept=".csv">
-                        <div class="form-text">Select a CSV file containing inventory data.</div>
-                    </div>
-                    <button type="submit" class="btn btn-primary">
-                        <i class="fas fa-upload"></i> Upload
-                    </button>
-                </form>
-
-                <hr>
-
-                <div class="mb-3">
-                    <label for="json_data" class="form-label">Paste JSON Data</label>
-                    <textarea class="form-control" id="json_data" name="json_data" rows="5" 
-                              placeholder="Paste your JSON data here..."></textarea>
-                    <div class="form-text">Paste JSON data from Bamboo or Cultivera.</div>
-                </div>
-                <button class="btn btn-primary" onclick="processJsonData()">
-                    <i class="fas fa-code"></i> Process JSON
+      <div class="card mb-4">
+        <div class="card-header">
+          <h5><i class="fas fa-upload"></i> Import Data</h5>
+        </div>
+        <div class="card-body">
+          <!-- Import from URL -->
+          <form action="{{ url_for('load_url') }}" method="post" class="mb-3">
+            <div class="mb-3">
+              <label for="json_url" class="form-label">Import from URL</label>
+              <div class="input-group">
+                <input type="url" class="form-control" id="json_url" name="url" placeholder="Enter JSON URL..." required>
+                <button class="btn btn-primary" type="submit">
+                  <i class="fas fa-download"></i> Load
                 </button>
-
-                <hr>
-
-                <form action="{{ url_for('search_json_or_api') }}" method="post" class="mb-4">
-                    <label for="searchInput" class="form-label">Paste JSON data or enter API URL</label>
-                    <textarea class="form-control mb-2" id="searchInput" name="search_input" rows="4"
-                        placeholder='Paste JSON here or enter an API URL (e.g., https://api-trace.getbamboo.com/shared/manifests/json/YOUR_KEY)'></textarea>
-                    <button type="submit" class="btn btn-primary mt-2">Import Data</button>
-                </form>
+              </div>
+              <div class="form-text">
+                Enter a URL to fetch JSON data from GrowFlow, Bamboo, or Cultivera.
+                <br>
+                <small class="text-muted">
+                  Supported formats: 
+                  <span class="badge bg-info">GrowFlow</span>
+                  <span class="badge bg-info">Bamboo</span>
+                  <span class="badge bg-info">Cultivera</span>
+                </small>
+              </div>
             </div>
+          </form>
+          <hr>
+          <!-- Upload CSV File -->
+          <form action="{{ url_for('upload_csv') }}" method="post" enctype="multipart/form-data">
+            <div class="mb-3">
+              <label for="file" class="form-label">Upload CSV File</label>
+              <input type="file" class="form-control" id="file" name="file" accept=".csv">
+              <div class="form-text">
+                Select a CSV file containing inventory data. Files will be saved to your Downloads folder.
+              </div>
+            </div>
+            <button type="submit" class="btn btn-primary">
+              <i class="fas fa-upload"></i> Upload
+            </button>
+          </form>
+          <hr>
+          <!-- Paste JSON Data -->
+          <form action="{{ url_for('search_json_or_api') }}" method="post" class="mb-4">
+            <div class="mb-3">
+              <label for="searchInput" class="form-label">Paste JSON Data or Enter API URL</label>
+              <textarea class="form-control mb-2" id="searchInput" name="search_input" rows="4" placeholder='Paste JSON here or enter an API URL (e.g., https://api-trace.getbamboo.com/shared/manifests/json/YOUR_KEY)'></textarea>
+            </div>
+            <button type="submit" class="btn btn-primary mt-2">Import Data</button>
+          </form>
         </div>
+      </div>
     </div>
-    
     <div class="col-md-4">
-        <div class="card">
-            <div class="card-header">
-                <h5 class="mb-0"><i class="fas fa-cog"></i> Quick Settings</h5>
-            </div>
-            <div class="card-body">
-                <form action="{{ url_for('settings') }}" method="post">
-                    <div class="mb-3">
-                        <label for="items_per_page" class="form-label">Items per Page</label>
-                        <select class="form-select" id="items_per_page" name="items_per_page">
-                            <option value="2">2</option>
-                            <option value="4" selected>4</option>
-                            <option value="6">6</option>
-                            <option value="8">8</option>
-                        </select>
-            </div>
-            
-                    <div class="mb-3">
-                        <label for="output_dir" class="form-label">Output Directory</label>
-                        <input type="text" class="form-control" id="output_dir" name="output_dir" 
-                               value="{{ config['PATHS']['output_dir'] }}">
-                        </div>
-                        
-                    <div class="form-check mb-3">
-                        <input class="form-check-input" type="checkbox" id="auto_open" name="auto_open" 
-                               {% if config['SETTINGS'].getboolean('auto_open', True) %}checked{% endif %}>
-                        <label class="form-check-label" for="auto_open">
-                            Auto-open after generation
-                        </label>
-            </div>
-            
-                    <button type="submit" class="btn btn-primary">
-                        <i class="fas fa-save"></i> Save Settings
-                    </button>
-                </form>
-    </div>
-</div>
-
-        <div class="card mt-3">
-            <div class="card-header">
-                <h5 class="mb-0"><i class="fas fa-info-circle"></i> Quick Info</h5>
-            </div>
-            <div class="card-body">
-                <p class="mb-2">
-                    <i class="fas fa-file-csv text-success"></i> CSV Format:
-                    <small class="d-block">Product Name*, Barcode*, Quantity*, etc.</small>
-                </p>
-                <p class="mb-2">
-                    <i class="fas fa-code text-primary"></i> JSON Format:
-                    <small class="d-block">Bamboo Transfer or Cultivera Manifest</small>
-                </p>
-                <p class="mb-0">
-                    <i class="fas fa-file-word text-info"></i> Output:
-                    <small class="d-block">Word document with inventory slips</small>
-                </p>
-                </div>
+      <!-- Quick Settings -->
+      <div class="card mb-4">
+        <div class="card-header">
+          <h5><i class="fas fa-cog"></i> Quick Settings</h5>
         </div>
+        <div class="card-body">
+          <form action="{{ url_for('settings') }}" method="post">
+            <div class="mb-3">
+              <label for="items_per_page" class="form-label">Items per Page</label>
+              <select class="form-select" id="items_per_page" name="items_per_page">
+                <option value="2">2</option>
+                <option value="4" selected>4</option>
+                <option value="6">6</option>
+                <option value="8">8</option>
+              </select>
+            </div>
+            <!-- Replace the output directory text field with a button -->
+            <div class="mb-3">
+              <label class="form-label">Output Directory</label>
+              <button type="button" class="btn btn-secondary" id="open_downloads_btn">
+                <i class="fas fa-folder-open"></i> Open Downloads Folder
+              </button>
+            </div>
+            <div class="form-check mb-3">
+              <input class="form-check-input" type="checkbox" id="auto_open" name="auto_open" {% if config['SETTINGS'].getboolean('auto_open', True) %}checked{% endif %}>
+              <label class="form-check-label" for="auto_open">Auto-open after generation</label>
+            </div>
+            <button type="submit" class="btn btn-primary">
+              <i class="fas fa-save"></i> Save Settings
+            </button>
+          </form>
+        </div>
+      </div>
+      <!-- Quick Info -->
+      <div class="card">
+        <div class="card-header">
+          <h5><i class="fas fa-info-circle"></i> Quick Info</h5>
+        </div>
+        <div class="card-body">
+          <p>
+            <i class="fas fa-file-csv text-success"></i> CSV Format:
+            <small class="d-block">Product Name*, Barcode*, Quantity*, etc.</small>
+          </p>
+          <p>
+            <i class="fas fa-code text-primary"></i> JSON Format:
+            <small class="d-block">Bamboo Transfer or Cultivera Manifest</small>
+          </p>
+          <p>
+            <i class="fas fa-file-word text-info"></i> Output:
+            <small class="d-block">Word document with inventory slips</small>
+          </p>
+        </div>
+      </div>
     </div>
+  </div>
 </div>
 {% endblock %}
-
 {% block extra_js %}
 <script>
 function loadFromUrl() {
@@ -127,7 +125,6 @@ function loadFromUrl() {
         alert('Please enter a URL');
         return;
     }
-
     fetch(url)
         .then(response => response.json())
         .then(data => {
@@ -145,7 +142,6 @@ function processJsonData() {
         alert('Please enter JSON data');
         return;
     }
-
     fetch('{{ url_for("paste_json") }}', {
         method: 'POST',
         headers: {
@@ -156,9 +152,9 @@ function processJsonData() {
     .then(response => {
         if (response.redirected) {
             window.location.href = response.url;
-            } else {
+        } else {
             return response.json();
-            }
+        }
     })
     .then(data => {
         if (data && !data.success) {
@@ -169,5 +165,74 @@ function processJsonData() {
         alert('Error processing data: ' + error.message);
     });
 }
+
+document.getElementById('open_downloads_btn').addEventListener('click', function() {
+    fetch('{{ url_for("open_downloads") }}')
+      .then(response => response.json())
+      .then(data => {
+          if (!data.success) {
+              alert('Failed to open downloads folder: ' + data.message);
+          }
+      })
+      .catch(err => {
+          alert('Error: ' + err);
+      });
+});
 </script>
 {% endblock %}
+
+if __name__ == '__main__':
+    import os
+    import subprocess
+    import socket
+    import threading
+    import time
+    import webbrowser
+
+    def is_port_available(port):
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            try:
+                s.bind(('localhost', port))
+                return True
+            except Exception:
+                return False
+
+    # Try to kill existing processes (macOS specific)
+    try:
+        subprocess.run(['pkill', '-f', 'python.*:[0-9]'], capture_output=True)
+    except Exception:
+        pass
+
+    # Ensure template directories exist
+    os.makedirs('templates', exist_ok=True)
+    for directory in ['templates', 'templates/documents']:
+        os.makedirs(directory, exist_ok=True)
+
+    # Create default template if it doesn't exist
+    default_template = os.path.join(os.path.dirname(__file__),
+                                    "templates/documents/InventorySlips.docx")
+    if not os.path.exists(default_template):
+        from docx import Document
+        doc = Document()
+        doc.save(default_template)
+
+    # Choose a single available port from the list
+    available_ports = [5000, 8000, 8080, 8888]
+    chosen_port = None
+    for port in available_ports:
+        if is_port_available(port):
+            chosen_port = port
+            break
+
+    if chosen_port is not None:
+        # Run browser-open code only in the reloaded (real) process
+        if os.environ.get("WERKZEUG_RUN_MAIN") == "true":
+            def open_browser():
+                time.sleep(1.0)  # Allow time for the server to start
+                webbrowser.open(f'http://localhost:{chosen_port}')
+            threading.Thread(target=open_browser, daemon=True).start()
+
+        print(f"Starting server on port {chosen_port}...")
+        app.run(debug=True, host='localhost', port=chosen_port)
+    else:
+        print("Could not find an available port. Please close some applications and try again.")

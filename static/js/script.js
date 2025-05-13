@@ -1,7 +1,33 @@
-// Common JavaScript functions
+// Wait for DOM to be fully loaded
 document.addEventListener('DOMContentLoaded', function() {
     console.log('Script loaded successfully');
-    // Add your common JavaScript functionality here
+
+    // Safe paragraph handling
+    function handleParagraphs() {
+        try {
+            const paragraphs = document.querySelectorAll('[data-content]');
+            if (!paragraphs.length) return;
+
+            paragraphs.forEach((element) => {
+                const content = element.getAttribute('data-content');
+                if (content) {
+                    element.textContent = content;
+                }
+            });
+        } catch (error) {
+            console.error('Error handling paragraphs:', error);
+        }
+    }
+
+    // Initialize paragraph handling
+    handleParagraphs();
+
+    // Handle dynamic content updates
+    const observer = new MutationObserver(handleParagraphs);
+    observer.observe(document.body, {
+        childList: true,
+        subtree: true
+    });
 });
 
 // Load JSON data from a URL and process it

@@ -38,11 +38,18 @@
                                 <div class="form-text">User interface color theme.</div>
                             </div>
                             
-                            <div class="mb-3">
-                                <label for="outputDir" class="form-label">Output Directory</label>
-                                <input type="text" class="form-control" id="outputDir" name="output_dir" 
-                                       value="{{ config['PATHS'].get('output_dir') }}">
-                                <div class="form-text">Directory where generated files will be saved.</div>
+                            <div class="form-group mb-3">
+                                <label for="output_dir" class="form-label">Output Directory</label>
+                                <div class="input-group">
+                                    <input type="text" class="form-control" id="output_dir" name="output_dir" 
+                                           value="{{ config['PATHS']['output_dir'] }}" readonly>
+                                    <button type="button" class="btn btn-info" onclick="browseDirectory()">
+                                        <i class="fas fa-folder-open"></i> Browse
+                                    </button>
+                                </div>
+                                <small class="form-text text-muted">
+                                    Default: Downloads folder
+                                </small>
                             </div>
                         </div>
                     </div>
@@ -80,5 +87,55 @@
     document.getElementById('theme').addEventListener('change', function() {
         alert('Theme changes will be applied after saving settings and refreshing the page.');
     });
+
+    async function browseDirectory() {
+        try {
+            // Create a file input element
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.webkitdirectory = true;
+            input.directory = true;
+            
+            input.onchange = async (e) => {
+                if (e.target.files.length > 0) {
+                    const path = e.target.files[0].path;
+                    const directory = path.substring(0, path.lastIndexOf('/'));
+                    
+                    // Send to server
+                    const response = await fetch('{{ url_for("select_directory") }}', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded',
+                        },
+                        body: `directory=${encodeURIComponent(directory)}`
+                    });
+                    
+                    const result = await response.json();
+                    if (result.success) {
+                        document.getElementById('output_dir').value = directory;
+                        showAlert('success', result.message);
+                    } else {
+                        showAlert('error', result.message);
+                    }
+                }
+            };
+            
+            input.click();
+        } catch (error) {
+            console.error('Error browsing directory:', error);
+            showAlert('error', 'Failed to browse directory');
+        }
+    }
+
+    function showAlert(type, message) {
+        const alertDiv = document.createElement('div');
+        alertDiv.className = `alert alert-${type === 'success' ? 'success' : 'danger'} alert-dismissible fade show`;
+        alertDiv.innerHTML = `
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        document.querySelector('.container').insertBefore(alertDiv, document.querySelector('.card'));
+        setTimeout(() => alertDiv.remove(), 5000);
+    }
 </script>
 {% endblock %}

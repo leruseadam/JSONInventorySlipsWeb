@@ -85,7 +85,7 @@
         
         .title-label {
             color: var(--fg-main);
-            font-size: 18px;
+            font-size: 2rem; /* For example, 2rem equates roughly to 32px */
             font-weight: bold;
         }
         
@@ -101,6 +101,7 @@
             color: var(--button-fg);
             font-weight: bold;
             padding: 10px 15px;
+            font-size: 2rem;
         }
         
         .btn-primary {
@@ -128,7 +129,7 @@
         
         .btn-success {
             background-color: var(--success);
-            border-color: var(--success);
+            border-color: var (--success);
             color: var(--bg-main);
         }
         
@@ -156,6 +157,10 @@
             opacity: 0.7;
         }
         
+        .form-label {
+            font-size: 0.1rem; /* Adjusted to be smaller than the default */
+        }
+        
         /* Custom tabs to match desktop app */
         .custom-tabs {
             display: flex;
@@ -172,6 +177,7 @@
             background-color: var(--bg-secondary);
             color: var(--fg-main);
             border-radius: 5px 5px 0 0;
+            font-size: 0.875rem;
         }
         
         .custom-tab.active {
@@ -214,7 +220,7 @@
         
         .product-details {
             font-size: 0.9rem;
-            color: var(--fg-secondary);
+            color: var (--fg-secondary);
         }
         
         .source-bamboo {
@@ -309,6 +315,10 @@
             background-color: var(--accent);
             border-radius: 10px;
         }
+
+        .small-label {
+            font-size: 0.2rem; /* Adjust this value to your preferred size */
+        }
     </style>
     
     {% block extra_css %}{% endblock %}
@@ -357,7 +367,7 @@
         
         <!-- Import from URL -->
         <form action="{{ url_for('load_url') }}" method="post" class="mb-3">
-            <label for="json_url" class="form-label">Import from URL</label>
+            <label for="json_url" class="form-label small-label">Import from URL</label>
             <div class="input-group">
                 <input type="url" class="form-control" id="json_url" name="url"
                        placeholder="Enter JSON URL (Bamboo or Cultivera)" required>

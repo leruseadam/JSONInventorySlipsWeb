@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Inventory Slip Generator{% endblock %}</title>
+    <title>{{ title or "Inventory Slip Generator" }}</title>
+    <link rel="shortcut icon" href="{{ url_for('static', filename='favicon.ico') }}">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
@@ -184,8 +185,70 @@
         }
     </style>
     {% block extra_css %}{% endblock %}
+    {% block head %}
+    <script>
+    // Wait for DOM to be fully loaded
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('DOM loaded, initializing formatters...');
+        
+        // Format text elements
+        const formatText = function() {
+            try {
+                document.querySelectorAll('.text-content').forEach(function(element) {
+                    const text = element.textContent || '';
+                    if (text.length > 30) {
+                        element.style.fontSize = '0.9em';
+                    }
+                    if (text.length > 50) {
+                        element.style.fontSize = '0.8em';
+                    }
+                });
+            } catch (error) {
+                console.error('Error formatting text:', error);
+            }
+        };
+
+        // Handle JSON view if present
+        const setupJsonView = function() {
+            try {
+                const copyButton = document.getElementById('copy-button');
+                const jsonDisplay = document.getElementById('json-display');
+                
+                if (copyButton && jsonDisplay) {
+                    copyButton.addEventListener('click', function() {
+                        try {
+                            navigator.clipboard.writeText(jsonDisplay.textContent)
+                                .then(() => {
+                                    copyButton.textContent = 'Copied!';
+                                    setTimeout(() => {
+                                        copyButton.textContent = 'Copy JSON';
+                                    }, 2000);
+                                })
+                                .catch(err => console.error('Copy failed:', err));
+                        } catch (error) {
+                            console.error('Copy error:', error);
+                        }
+                    });
+                }
+            } catch (error) {
+                console.error('JSON view setup error:', error);
+            }
+        };
+
+        // Initialize
+        formatText();
+        setupJsonView();
+    });
+
+    // Remove any event listeners that might be disabling the default context menu
+    document.addEventListener('contextmenu', function(event) {
+        // Ensure the default context menu is shown
+        event.stopPropagation();
+    }, true);
+    </script>
+    {% endblock %}
 </head>
-<body>
+<body oncontextmenu="return true;">
     <header>
         <img src="{{ url_for('static', filename='images/logo.png') }}" alt="logo" class="header-logo">
     </header>
@@ -250,6 +313,61 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
     {% block extra_js %}{% endblock %}
+    {% block scripts %}
+    <script>
+// Initialize all formatters when DOM is loaded
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('DOM loaded, initializing formatters...');
+    
+    // Initialize text formatting
+    const initFormatting = () => {
+        try {
+            // Select all text elements that need formatting
+            document.querySelectorAll('.formatted-text, .data-cell').forEach(element => {
+                const text = element.textContent || '';
+                // Apply font sizing based on text length
+                if (text.length > 50) {
+                    element.style.fontSize = '0.8em';
+                } else if (text.length > 30) {
+                    element.style.fontSize = '0.9em';
+                }
+            });
+        } catch (error) {
+            console.error('Text formatting error:', error);
+        }
+    };
+
+    // Initialize copy buttons
+    const initCopyButtons = () => {
+        try {
+            const copyBtn = document.getElementById('copy-button');
+            if (copyBtn) {
+                copyBtn.addEventListener('click', () => {
+                    const content = document.getElementById('json-display');
+                    if (content) {
+                        navigator.clipboard.writeText(content.textContent)
+                            .then(() => {
+                                copyBtn.textContent = 'Copied!';
+                                setTimeout(() => {
+                                    copyBtn.textContent = 'Copy JSON';
+                                }, 2000);
+                            })
+                            .catch(err => console.error('Copy failed:', err));
+                    }
+                });
+            }
+        } catch (error) {
+            console.error('Copy button error:', error);
+        }
+    };
+
+    // Run initializations
+    initFormatting();
+    initCopyButtons();
+});
+</script>
+{% endblock %}
 </body>
 </html>

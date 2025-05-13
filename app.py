@@ -24,6 +24,7 @@ from werkzeug.utils import secure_filename
 import logging
 import threading
 import webbrowser
+import time
 from src.utils.document_handler import DocumentHandler
 from src.ui.app import InventorySlipGenerator
 
@@ -34,15 +35,53 @@ logger = logging.getLogger(__name__)
 
 # Constants
 CONFIG_FILE = os.path.expanduser("~/inventory_generator_config.ini")
-DEFAULT_SAVE_DIR = os.path.expanduser("~/Downloads")
-APP_VERSION = "2.0.0"
+
+def get_downloads_dir():
+    """Get the default Downloads directory for both Windows and Mac"""
+    try:
+        if sys.platform == "win32":
+            # First try Windows known folder path
+            import winreg
+            from ctypes import windll, wintypes
+            CSIDL_PERSONAL = 5  # Documents
+            SHGFP_TYPE_CURRENT = 0  # Get current path
+            buf = wintypes.create_unicode_buffer(wintypes.MAX_PATH)
+            windll.shell32.SHGetFolderPathW(None, CSIDL_PERSONAL, None, SHGFP_TYPE_CURRENT, buf)
+            documents = buf.value
+            
+            # Try registry next
+            try:
+                with winreg.OpenKey(winreg.HKEY_CURRENT_USER, 
+                    r"SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Shell Folders") as key:
+                    downloads = winreg.QueryValueEx(key, "{374DE290-123F-4565-9164-39C4925E467B}")[0]
+                return downloads
+            except:
+                # Fall back to Documents\Downloads
+                return os.path.join(documents, "Downloads")
+        else:
+            # macOS and Linux
+            return os.path.join(os.path.expanduser("~"), "Downloads")
+    except:
+        # Ultimate fallback - user's home directory
+        return os.path.expanduser("~")
+
+# Update the constants
+DEFAULT_SAVE_DIR = get_downloads_dir()
 UPLOAD_FOLDER = os.path.join(tempfile.gettempdir(), "inventory_generator", "uploads")
+
+# Ensure directories exist with proper permissions
+try:
+    os.makedirs(DEFAULT_SAVE_DIR, exist_ok=True)
+    os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+except Exception as e:
+    logger.error(f"Error creating directories: {str(e)}")
+    # Fall back to temp directory if needed
+    if not os.path.exists(DEFAULT_SAVE_DIR):
+        DEFAULT_SAVE_DIR = tempfile.gettempdir()
+
+APP_VERSION = "2.0.0"
 ALLOWED_EXTENSIONS = {'csv', 'json', 'docx'}
 MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16 MB max upload size
-
-# Ensure directories exist
-os.makedirs(DEFAULT_SAVE_DIR, exist_ok=True)
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 # Initialize Flask application
 app = Flask(__name__,
@@ -50,10 +89,10 @@ app = Flask(__name__,
     static_folder='static',
     template_folder='templates'
 )
-app.secret_key = os.urandom(24)
+# Use a fixed secret key for development to preserve session data
+app.secret_key = 'your-fixed-development-secret-key'
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['MAX_CONTENT_LENGTH'] = MAX_CONTENT_LENGTH
-app.config['SESSION_TYPE'] = 'filesystem'
 
 # Helper function to get resource path (for templates)
 def resource_path(relative_path):
@@ -69,7 +108,7 @@ def load_config():
     # Default configurations
     config['PATHS'] = {
         'template_path': os.path.join(os.path.dirname(__file__), "templates/documents/InventorySlips.docx"),
-        'output_dir': DEFAULT_SAVE_DIR,
+        'output_dir': DEFAULT_SAVE_DIR,  # Use the new DEFAULT_SAVE_DIR
         'recent_files': '',
         'recent_urls': ''
     }
@@ -136,15 +175,17 @@ def adjust_table_font_sizes(doc_path):
 
 # Open files after saving
 def open_file(path):
+    """Open files using the default system application"""
     try:
-        if sys.platform == "darwin":
-            os.system(f'open "{path}"')
-        elif sys.platform == "win32":
+        if sys.platform == "win32":
             os.startfile(path)
-        else:
+        elif sys.platform == "darwin":  # macOS
+            os.system(f'open "{path}"')
+        else:  # linux variants
             os.system(f'xdg-open "{path}"')
     except Exception as e:
-        print(f"Error opening file: {e}")
+        logger.error(f"Error opening file: {e}")
+        flash(f"Error opening file: {e}", "error")
 
 # Split records into chunks
 def chunk_records(records, chunk_size=4):
@@ -291,6 +332,7 @@ def parse_bamboo_data(json_data):
         
         # Process inventory items
         items = json_data.get("inventory_transfer_items", [])
+        logger.info(f"Bamboo data: found {len(items)} inventory_transfer_items")
         records = []
         
         for item in items:
@@ -385,6 +427,63 @@ def parse_cultivera_data(json_data):
     except Exception as e:
         raise ValueError(f"Failed to parse Cultivera data: {e}")
 
+def parse_growflow_data(json_data):
+    """
+    Parse GrowFlow JSON format into a DataFrame with common fields:
+      - Product Name*
+      - Product Type*
+      - Quantity Received*
+      - Barcode*
+      - Accepted Date
+      - Vendor
+      - Strain Name
+      - THC Content
+      - CBD Content
+      - Source System
+    """
+    try:
+        if not ('inventory_transfer_items' in json_data and 
+                'from_license_number' in json_data and 
+                'from_license_name' in json_data):
+            return pd.DataFrame()
+        
+        # Build vendor info using GrowFlow's from_license fields
+        vendor_meta = f"{json_data.get('from_license_number', '')} - {json_data.get('from_license_name', 'Unknown Vendor')}"
+        
+        # Determine accepted date from transferred_at or estimated arrival
+        raw_date = json_data.get("est_arrival_at", "") or json_data.get("transferred_at", "")
+        accepted_date = raw_date.split("T")[0] if "T" in raw_date else raw_date
+        
+        items = json_data.get("inventory_transfer_items", [])
+        mapped_data = []
+        
+        for item in items:
+            potency_data = item.get("lab_result_data", {}).get("potency", [])
+            # Look for total-thc (or fallback to thc) and total-cbd (or cbd)
+            thc_value = next((p.get('value') for p in potency_data if p.get('type') in ["total-thc", "thc"]), 0)
+            cbd_value = next((p.get('value') for p in potency_data if p.get('type') in ["total-cbd", "cbd"]), 0)
+            
+            mapped_item = {
+                "Product Name*": item.get("product_name", ""),
+                "Product Type*": item.get("inventory_type", ""),
+                "Quantity Received*": item.get("qty", ""),
+                # Prefer product_sku first then inventory_id
+                "Barcode*": item.get("product_sku", "") or item.get("inventory_id", ""),
+                "Accepted Date": accepted_date,
+                "Vendor": vendor_meta,
+                "Strain Name": item.get("strain_name", ""),
+                "THC Content": f"{thc_value}%",
+                "CBD Content": f"{cbd_value}%",
+                "Source System": "GrowFlow"
+            }
+            mapped_data.append(mapped_item)
+        
+        return pd.DataFrame(mapped_data)
+    
+    except Exception as e:
+        logger.error(f"Error parsing GrowFlow data: {str(e)}")
+        return pd.DataFrame()
+
 # Detect and parse JSON from multiple systems
 def parse_inventory_json(json_data):
     """
@@ -405,6 +504,10 @@ def parse_inventory_json(json_data):
         # Try parsing as Cultivera
         elif "data" in json_data and isinstance(json_data["data"], dict) and "manifest" in json_data["data"]:
             return parse_cultivera_data(json_data), "Cultivera"
+        
+        # Try parsing as GrowFlow
+        elif "document_schema_version" in json_data:
+            return parse_growflow_data(json_data), "GrowFlow"
         
         # Unknown format
         else:
@@ -664,7 +767,6 @@ def load_url():
             flash('Please enter a URL', 'error')
             return redirect(url_for('index'))
         
-        # Check if it's a Bamboo URL
         if "bamboo" in url.lower() or "getbamboo" in url.lower():
             return handle_bamboo_url(url)
         else:
@@ -676,83 +778,49 @@ def load_url():
         return redirect(url_for('index'))
 
 def load_from_url(url):
-    """Handle loading JSON from generic URLs"""
     if not url.startswith(('http://', 'https://')):
         flash('Please enter a valid URL starting with http:// or https://', 'error')
         return redirect(url_for('index'))
 
     try:
-        # Set up headers
+        import ssl
+        # Create an SSL context that does not verify certificates
+        ssl_context = ssl.create_default_context()
+        ssl_context.check_hostname = False
+        ssl_context.verify_mode = ssl.CERT_NONE
+
         headers = {
             'User-Agent': f'InventorySlipGenerator/{APP_VERSION}',
             'Accept': 'application/json'
         }
-        
-        # Fetch data
         req = urllib.request.Request(url, headers=headers)
-        with urllib.request.urlopen(req, timeout=10) as resp:
+        with urllib.request.urlopen(req, context=ssl_context, timeout=10) as resp:
             raw_data = resp.read()
-            
-            # Check if we got any data
             if not raw_data:
                 raise ValueError("Empty response received")
-            
-            # Try to decode and parse JSON with better error handling
+            decoded_data = raw_data.decode('utf-8', errors='strict').strip()
+            if not decoded_data:
+                raise ValueError("Empty response after decoding")
+            # Attempt to load the JSON; log a snippet if it fails
             try:
-                # First try UTF-8 decoding with strict error handling
-                decoded_data = raw_data.decode('utf-8', errors='strict').strip()
-                if not decoded_data:
-                    raise ValueError("Empty response after decoding")
-                
-                # Log the received data for debugging
-                logger.debug(f"Received data: {decoded_data[:200]}...")  # Log first 200 chars
-                
-                # Try to parse JSON
                 data = json.loads(decoded_data)
-                
-                # Validate JSON structure
-                if not isinstance(data, (dict, list)):
-                    raise ValueError("Invalid JSON structure - expecting object or array")
-                
-                # Process the JSON data
-                result_df, format_type = parse_inventory_json(data)
-                
-                if result_df is None or result_df.empty:
-                    raise ValueError(f"Could not process data: {format_type}")
-                
-                # Store in session
-                session['df_json'] = result_df.to_json(orient='records')
-                session['format_type'] = format_type
-                session['raw_json'] = json.dumps(data)
-                
-                # Update recent URLs
-                config = load_config()
-                recent_urls = config['PATHS'].get('recent_urls', '').split('|')
-                recent_urls = [u for u in recent_urls if u]
-                if url not in recent_urls:
-                    recent_urls.insert(0, url)
-                    recent_urls = recent_urls[:10]
-                    config['PATHS']['recent_urls'] = '|'.join(recent_urls)
-                    save_config(config)
-                
-                flash(f'{format_type} data loaded successfully', 'success')
-                return redirect(url_for('data_view'))
-                
-            except json.JSONDecodeError as e:
-                logger.error(f"JSON decode error: {str(e)}")
-                logger.error(f"Attempted to parse: {decoded_data[:200]}...")  # Log problematic data
-                raise ValueError(f"Invalid JSON format: {str(e)}")
-            except UnicodeDecodeError as e:
-                logger.error(f"Unicode decode error: {str(e)}")
-                raise ValueError("Invalid character encoding in response")
+            except json.JSONDecodeError as jde:
+                logger.error("JSON decoding error. Response snippet:\n%s", decoded_data[:200])
+                raise ValueError(f"Invalid JSON format: {str(jde)}")
             
-    except ValueError as e:
-        flash(str(e), 'error')
-        return redirect(url_for('index'))
-    except urllib.error.URLError as e:
-        logger.error(f"URL error: {str(e)}")
-        flash(f'Failed to connect to URL: {str(e)}', 'error')
-        return redirect(url_for('index'))
+            if not isinstance(data, (dict, list)):
+                raise ValueError("Invalid JSON structure - expecting object or array")
+            
+            result_df, format_type = parse_inventory_json(data)
+            if result_df is None or result_df.empty:
+                raise ValueError(f"Could not process data: {format_type}")
+            
+            session['df_json'] = result_df.to_json(orient='records')
+            session['format_type'] = format_type
+            session['raw_json'] = json.dumps(data)
+            
+            flash(f'{format_type} data loaded successfully', 'success')
+            return redirect(url_for('data_view'))
     except Exception as e:
         logger.error(f'Error loading URL: {str(e)}', exc_info=True)
         flash(f'Failed to load data: {str(e)}', 'error')
@@ -761,6 +829,12 @@ def load_from_url(url):
 def handle_bamboo_url(url):
     """Handle Bamboo-specific URL loading with API key support"""
     try:
+        import ssl
+        # Create an SSL context that does not verify certificates
+        ssl_context = ssl.create_default_context()
+        ssl_context.check_hostname = False
+        ssl_context.verify_mode = ssl.CERT_NONE
+
         # Set up headers
         headers = {
             'User-Agent': f'InventorySlipGenerator/{APP_VERSION}',
@@ -773,14 +847,13 @@ def handle_bamboo_url(url):
         if 'API' in config and config['API'].get('bamboo_key'):
             headers['Authorization'] = f"Bearer {config['API']['bamboo_key']}"
         
-        # Fetch data
+        # Fetch data using our SSL context
         req = urllib.request.Request(url, headers=headers)
-        with urllib.request.urlopen(req, timeout=10) as resp:
+        with urllib.request.urlopen(req, context=ssl_context, timeout=10) as resp:
             data = json.loads(resp.read().decode())
             
         # Process Bamboo data
         result_df = parse_bamboo_data(data)
-        
         if result_df is None or result_df.empty:
             flash('Could not process Bamboo data', 'error')
             return redirect(url_for('index'))
@@ -790,7 +863,7 @@ def handle_bamboo_url(url):
         session['format_type'] = 'Bamboo'
         session['raw_json'] = json.dumps(data)
         
-        # Cache the response
+        # Cache the response (optional)
         cache_dir = os.path.join(os.path.expanduser("~"), ".inventory_slip_cache")
         os.makedirs(cache_dir, exist_ok=True)
         with open(os.path.join(cache_dir, "bamboo_latest.json"), 'w') as f:
@@ -922,14 +995,16 @@ def data_view():
     # Load data from session
     df_json = session.get('df_json', None)
     format_type = session.get('format_type', None)
-    
+
     if df_json is None:
         flash('No data available. Please load data first.')
         return redirect(url_for('index'))
-    
+
     # Convert JSON to DataFrame
     df = pd.read_json(df_json, orient='records')
-    
+    # Debug log - check columns from parsed data
+    logger.info(f"DataFrame columns: {df.columns.tolist()}")
+
     # Format data for template
     products = []
     for idx, row in df.iterrows():
@@ -942,10 +1017,10 @@ def data_view():
             'source': format_type or 'Unknown'
         }
         products.append(product)
-    
+
     # Load configuration
     config = load_config()
-    
+
     return render_template(
         'data_view.html',
         products=products,
@@ -1188,34 +1263,69 @@ def validate_docx(file_path):
         logger.error(f"Document validation failed: {str(e)}")
         return False
 
+@app.route('/select-directory', methods=['POST'])
+def select_directory():
+    selected_dir = request.form.get('directory')
+    if selected_dir and os.path.exists(selected_dir):
+        config = load_config()
+        config['PATHS']['output_dir'] = selected_dir
+        save_config(config)
+        return jsonify({
+            'success': True,
+            'selected_dir': selected_dir,
+            'message': 'Output directory updated successfully'
+        })
+    return jsonify({
+        'success': False,
+        'message': 'Invalid directory selected'
+    }), 400
+
+import subprocess
+from flask import jsonify
+
+@app.route('/open_downloads')
+def open_downloads():
+    downloads_dir = get_downloads_dir()  # This function returns the appropriate downloads folder
+    try:
+        if sys.platform == "darwin":  # macOS
+            subprocess.Popen(["open", downloads_dir])
+        elif sys.platform == "win32":  # Windows
+            os.startfile(downloads_dir)
+        else:  # Linux and other OSes
+            subprocess.Popen(["xdg-open", downloads_dir])
+        return jsonify(success=True)
+    except Exception as e:
+        return jsonify(success=False, message=str(e))
+
 if __name__ == '__main__':
-    # Ensure template directories exist
-    os.makedirs('templates', exist_ok=True)
-    
-    # Create templates directory structure if it doesn't exist
-    template_dirs = [
-        'templates',
-        'templates/documents'
-    ]
-    
-    for directory in template_dirs:
-        os.makedirs(directory, exist_ok=True)
-    
-    # Create default template if it doesn't exist
-    default_template = os.path.join(os.path.dirname(__file__), "templates/documents/InventorySlips.docx")
-    if not os.path.exists(default_template):
-        doc = Document()
-        # Set up template formatting
-        section = doc.sections[0]
-        section.page_width = Inches(8.5)
-        section.page_height = Inches(11)
-        section.left_margin = Inches(0.5)
-        section.right_margin = Inches(0.5)
-        section.top_margin = Inches(0.5)
-        section.bottom_margin = Inches(0.5)
-        
-        # Save template
-        doc.save(default_template)
-        logger.info(f"Created default template at: {default_template}")
-    
-    app.run(debug=True, host='0.0.0.0', port=8000)
+    import socket
+    import threading
+    import time
+    import webbrowser
+
+    def is_port_available(port):
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            try:
+                s.bind(('localhost', port))
+                return True
+            except Exception:
+                return False
+
+    # Choose an available port from the list
+    available_ports = [5000, 8000, 8080, 8888]
+    chosen_port = None
+    for port in available_ports:
+        if is_port_available(port):
+            chosen_port = port
+            break
+
+    if chosen_port is None:
+        print("Could not find an available port.")
+    else:
+        def open_browser():
+            time.sleep(1.0)  # allow server to start
+            webbrowser.open(f'http://localhost:{chosen_port}')
+        threading.Thread(target=open_browser, daemon=True).start()
+
+        print(f"Starting server on port {chosen_port}...")
+        app.run(debug=True, host='localhost', port=chosen_port, use_reloader=False)
